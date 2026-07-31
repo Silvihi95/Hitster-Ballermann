@@ -219,7 +219,7 @@ async function exchangeToken(code) {
   }
 }
 
-// --- Playlist laden ---
+// --- Playlist laden (Mit offiziellem /tracks Endpunkt) ---
 async function loadPlaylist() {
   const input = document.getElementById('playlistInput').value;
   const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -239,9 +239,9 @@ async function loadPlaylist() {
     if(data.error) throw new Error(data.error.message);
 
     SONGS = [];
-    data.items.forEach(item => {
-      if (item && item.track && item.track.id) {
-        const t = item.track;
+    data.items.forEach(entry => {
+      const t = entry && entry.track;
+      if (t && t.id) {
         let songYear = 2024;
         if (t.album && t.album.release_date) {
           songYear = parseInt(t.album.release_date.split('-')[0]);
@@ -256,7 +256,7 @@ async function loadPlaylist() {
     });
 
     if (SONGS.length < 5) {
-      throw new Error("Zu wenige abspielbare Lieder gefunden.");
+      throw new Error("Zu wenige abspielbare Lieder gefunden. Bist du der Ersteller dieser Playlist?");
     }
 
     statusEl.style.color = "#2ec4b6";
@@ -294,12 +294,10 @@ document.getElementById('startBtn').onclick = () => {
   const names = [...playerInputs.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
   if (names.length < 1) { alert('Bitte mindestens einen Spielernamen eingeben.'); return; }
   
-  // Wir brauchen mindestens 1 Startkarte pro Spieler + ein paar zum Spielen
   if (SONGS.length < names.length + 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
 
   deck = shuffle([...SONGS]);
   
-  // Jeder Spieler bekommt ein eigenes Array (seinen eigenen Zeitstrahl) mit einer Startkarte
   players = names.map(n => ({
     name: n, 
     score: 1, 
@@ -313,7 +311,7 @@ document.getElementById('startBtn').onclick = () => {
   document.getElementById('game').classList.remove('hidden-section');
   
   renderScoreboard();
-  renderTimeline(); // Zeigt die Timeline von Spieler 1 an
+  renderTimeline(); 
   updateDeckCount();
 };
 
@@ -403,7 +401,6 @@ function renderTimeline() {
   const tl = document.getElementById('timeline');
   tl.innerHTML = '';
   
-  // Wir holen uns nur die Karten des Spielers, der gerade dran ist
   const currentPlayerCards = players[currentTurn].timeline;
   const sorted = [...currentPlayerCards].sort((a,b) => a.year - b.year);
   
@@ -466,14 +463,14 @@ document.getElementById('revealBtn').onclick = () => {
     banner.className = 'show ok';
     banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte gehört dir!`;
     players[currentTurn].score++;
-    players[currentTurn].timeline.push(pendingSong); // Karte wird zur eigenen Timeline hinzugefügt
+    players[currentTurn].timeline.push(pendingSong); 
   } else {
     banner.className = 'show bad';
     banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte wird abgeworfen.`;
   }
   
   renderScoreboard(); 
-  renderTimeline(); // Aktualisiert die Ansicht sofort
+  renderTimeline(); 
   
   document.getElementById('revealBtn').disabled = true;
   document.getElementById('nextTurnBtn').disabled = false;
@@ -486,7 +483,7 @@ document.getElementById('revealBtn').onclick = () => {
 };
 
 document.getElementById('nextTurnBtn').onclick = () => {
-  currentTurn = (currentTurn + 1) % players.length; // Nächster Spieler ist dran
+  currentTurn = (currentTurn + 1) % players.length; 
   pendingSong = null; pendingIndex = null;
   destroyCurrentController();
   
@@ -497,7 +494,7 @@ document.getElementById('nextTurnBtn').onclick = () => {
   document.getElementById('nextTurnBtn').disabled = true;
   
   renderScoreboard();
-  renderTimeline(); // Wechselt sofort die Ansicht auf den Zeitstrahl des neuen Spielers
+  renderTimeline(); 
 };
 </script>
 </body>
