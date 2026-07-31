@@ -323,14 +323,7 @@ document.getElementById('startBtn').onclick = () => {
   updateDeckCount();
 };
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i=a.length-1;i>0;i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
-}
+
 
 // --- Spotify IFrame Player ---
 let spotifyIFrameAPIReady = null;
@@ -671,7 +664,7 @@ document.getElementById('nextTurnBtn').onclick = () => {
   document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran.`;
   document.getElementById('resultBanner').className = '';
   document.getElementById('drawBtn').disabled = false;
-  document. getElementById(' nextTurnBtn') .disabled = true;
+  document. getElementById('nextTurnBtn') .disabled = true;
 renderScoreboard() ;
 
 };
