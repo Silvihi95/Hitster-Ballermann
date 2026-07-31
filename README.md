@@ -1,6 +1,6 @@
 # 🌴 Ballermann-Hitster 🍻
 
-Ein rein browserbasiertes Timeline-Kartenspiel, inspiriert von dem beliebten Gesellschaftsspiel "Hitster". Perfekt für die nächste Party, den Malle-Urlaub oder einfach einen lustigen Abend mit Freunden! Erreichbar unter : https://silvihi95.github.io/Hitster-Ballermann
+Ein rein browserbasiertes Timeline-Kartenspiel, inspiriert von dem beliebten Gesellschaftsspiel "Hitster". Perfekt für die nächste Party, den Malle-Urlaub oder einfach einen lustigen Abend mit Freunden! Erreichbar unter : https://silvihi95.github.io/My-Hits
 
 ## 🎮 Über das Spiel
 
