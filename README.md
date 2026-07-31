@@ -20,7 +20,7 @@ Damit das Spiel deine Spotify-Playlists abrufen kann, musst du es mit deiner eig
 1. Gehe zum [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) und logge dich ein.
 2. Klicke auf **"Create App"**.
 3. Vergib einen Namen (z.B. "My Hits Game") und eine Beschreibung.
-4. Trage unter **Redirect URIs** die genaue URL ein, unter der dein Spiel erreichbar sein wird (z.B. `http://localhost:5500` für lokale Tests oder `https://dein-nutzername.github.io/my-hits/` für GitHub Pages).
+4. Trage unter **Redirect URIs** die genaue URL ein, unter der dein Spiel erreichbar sein wird (z.B. `http://localhost:5500` für lokale Tests oder `https://Silvihi95.github.io/my-hits/` für GitHub Pages).
 5. Klicke auf Save.
 
 ### 2. Client ID eintragen
