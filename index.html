@@ -405,15 +405,19 @@ function renderTimeline() {
   const currentPlayerCards = players[currentTurn].timeline;
   const sorted = [...currentPlayerCards].sort((a,b) => a.year - b.year);
   
-  // Wenn noch kein Slot gewählt wurde (beim Ziehen), packen wir die Pending-Karte ganz an den Anfang
+  // WICHTIG: Wenn noch kein Song gezogen wurde, gar nichts anzeigen
+  if (!pendingSong) return;
+
+  // Wenn noch kein Slot gewählt wurde, zeigen wir die verdeckte Karte ganz links als Start an!
   if (pendingIndex === null) {
+    tl.appendChild(makePendingCardEl());
     tl.appendChild(makeSlot(0));
     sorted.forEach((card, i) => {
       tl.appendChild(makeCardEl(card));
       tl.appendChild(makeSlot(i+1));
     });
   } else {
-    // Wenn ein Slot gewählt wurde, rendern wir die Pending-Karte genau an diesem Index!
+    // Wenn ein Slot gewählt wurde, wandert die verdeckte Karte an diesen Index
     let slotIdx = 0;
     if (pendingIndex === slotIdx) {
       tl.appendChild(makePendingCardEl());
