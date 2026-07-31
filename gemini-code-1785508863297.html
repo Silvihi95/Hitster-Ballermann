@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Ballermann-Hitster</title>
+<style>
+  :root { --card-bg: #ffde59; --card-text: #1a1a1a; --accent: #ff5757; --accent2: #2ec4b6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: radial-gradient(circle at top, #14324d, #071019 80%); color: white; min-height: 100vh; padding: 20px; }
+  h1 { text-align: center; font-size: 1.8em; margin-bottom: 4px; color: #ffde59; text-shadow: 0 0 12px rgba(255,222,89,0.5); }
+  .subtitle { text-align:center; opacity:0.75; margin-bottom: 20px; font-size:0.9em;}
+  #apiSetup, #setup, #game { max-width: 900px; margin: 0 auto; }
+  .panel { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(4px); }
+  label { display:block; margin: 10px 0 4px; font-weight:600; }
+  input[type=text], input[type=number] { width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 1em; margin-bottom: 10px;}
+  .playerRow { display:flex; gap:8px; margin-bottom:6px; }
+  .playerRow input { flex:1; margin-bottom: 0; }
+  button { cursor: pointer; border: none; border-radius: 10px; padding: 10px 18px; font-size: 1em; font-weight: 700; background: var(--accent2); color: #06282a; transition: transform 0.15s ease, filter 0.15s ease; }
+  button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  button.secondary { background: #ffde59; color:#3a2b00; }
+  button.danger { background: var(--accent); color:white; }
+  button:disabled { opacity: 0.4; cursor:not-allowed; transform:none; }
+  
+  #scoreboard { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom: 14px; }
+  .playerBadge { padding: 8px 14px; border-radius: 30px; background: rgba(255,255,255,0.08); font-weight:600; border: 2px solid transparent; }
+  .playerBadge.active { border-color:#ffde59; background: rgba(255,222,89,0.18); }
+  .playerBadge .count { color:#2ec4b6; margin-left:6px; }
+  
+  #controls { display:flex; justify-content:center; gap:12px; margin-bottom: 18px; flex-wrap:wrap; }
+  #deckCount { text-align:center; opacity:0.6; font-size:0.85em; margin-bottom:10px; }
+  #timelineWrap { overflow-x: auto; padding: 20px 10px 30px; background: rgba(0,0,0,0.25); border-radius: 16px; }
+  #timeline { display:flex; align-items:center; min-height: 150px; width: max-content; padding: 0 20px; }
+  
+  .slot { width: 80px; min-width: 80px; height: 130px; display:flex; align-items:center; justify-content:center; position: relative; margin: 0 5px; }
+  .slot .dropline { width: 100%; height: 100%; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.3); border-radius: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .slot .dropline::after { content: "Hier ablegen"; font-size: 0.7em; color: rgba(255,255,255,0.4); text-align: center; }
+  .slot.dragover .dropline { background: rgba(255,222,89,0.15); border-color: #ffde59; border-width: 3px; box-shadow: 0 0 12px rgba(255,222,89,0.3); }
+  
+  .card { width: 110px; height: 130px; background: linear-gradient(160deg, var(--card-bg), #ffb703); color: var(--card-text); border-radius: 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:8px; box-shadow: 0 6px 14px rgba(0,0,0,0.4); cursor: grab; flex-shrink:0; position: relative; user-select:none; }
+  .card .year { font-size: 1.6em; font-weight:800; }
+  .card .title { font-size: 0.65em; font-weight:600; margin-top:4px; line-height:1.1; }
+  .card .artist { font-size: 0.58em; opacity:0.75; }
+  .card.hidden .year, .card.hidden .title, .card.hidden .artist { visibility: hidden; }
+  .card.hidden::after { content: "?"; position:absolute; font-size: 2.4em; font-weight:900; color: rgba(0,0,0,0.35); }
+  .card.pending { outline: 3px dashed #ff5757; animation: pulse 1.2s infinite; }
+  .card.dragging { opacity: 0.3; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 rgba(255,87,87,0.6);} 50%{box-shadow:0 0 18px rgba(255,87,87,0.9);} }
+  
+  #nowPlaying { text-align:center; margin-bottom: 14px; font-size:1.1em; }
+  #nowPlaying .hint { opacity:0.6; font-size:0.85em; }
+  .embedWrap { position: relative; margin: 12px 0; }
+  .embedOverlay { position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(160deg, var(--card-bg), #ffb703); border-radius: 12px; display:flex; align-items:center; justify-content:center; font-size: 2.2em; font-weight:900; color: rgba(0,0,0,0.4); z-index: 5; cursor:pointer; user-select:none; }
+  .embedOverlay:hover { filter: brightness(1.08); }
+  iframe.spotifyFrame { border-radius:12px; width:100%; height:152px; border:0; }
+  
+  #resultBanner { text-align:center; padding: 10px; border-radius:10px; font-weight:700; margin-bottom:10px; display:none; }
+  #resultBanner.show { display:block; }
+  #resultBanner.ok { background: rgba(46,196,182,0.25); color:#2ec4b6; }
+  #resultBanner.bad { background: rgba(255,87,87,0.25); color:#ff5757; }
+  #winnerBox { text-align:center; }
+  #winnerBox h2 { color:#ffde59; }
+  
+  .hidden-section { display:none !important; }
+</style>
+</head>
+<body>
+
+<h1>Ballermann-Hitster</h1>
+<div class="subtitle">Automatische Playlist-Anbindung · Timeline-Kartenspiel</div>
+
+<!-- SPOTIFY API SETUP -->
+<div id="apiSetup">
+  <div class="panel">
+    <h3>Schritt 1: Spotify-Playlist laden</h3>
+    
+    <div id="loginArea">
+      <p style="font-size: 0.9em; opacity: 0.8;">Um die Songs automatisch samt Jahr und Player zu importieren, logge dich kurz bei Spotify ein.</p>
+      <button class="secondary" onclick="loginSpotify()">Mit Spotify einloggen</button>
+    </div>
+
+    <div id="playlistArea" class="hidden-section">
+      <p style="color: #2ec4b6; font-weight: bold;">✓ Erfolgreich mit Spotify verbunden!</p>
+      <label>Spotify Playlist Link einfügen:</label>
+      <input type="text" id="playlistInput" placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcK1zT7iP663...">
+      <button onclick="loadPlaylist()">Lieder importieren</button>
+      <div id="playlistStatus" style="margin-top: 10px; font-weight: bold;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PLAYER SETUP -->
+<div id="setup" class="hidden-section">
+  <div class="panel">
+    <h3>Schritt 2: Spieler</h3>
+    <div id="playerInputs"></div>
+    <button class="secondary" id="addPlayerBtn">+ Spieler</button>
+  </div>
+  <div class="panel">
+    <h3>Einstellungen</h3>
+    <label>Karten zum Sieg (Empfehlung: 10)</label>
+    <input type="number" id="winTarget" value="10" min="3" max="45">
+  </div>
+  <div style="text-align:center;">
+    <button id="startBtn">Spiel starten</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game" class="hidden-section">
+  <div id="scoreboard"></div>
+  <div id="resultBanner"></div>
+  <div id="nowPlaying" class="panel">
+    <div id="npLabel">Bereit?</div>
+    <div id="embedArea"></div>
+    <div class="hint">Klicke auf das gelbe Feld, um den Song abzuspielen. Ziehe dann die Karte in die Timeline.</div>
+  </div>
+  <div id="deckCount"></div>
+  <div id="controls">
+    <button id="drawBtn">Nächsten Song ziehen</button>
+    <button id="revealBtn" disabled>Auflösen</button>
+    <button id="nextTurnBtn" disabled>Nächster Spieler</button>
+  </div>
+  <div id="timelineWrap">
+    <div id="timeline"></div>
+  </div>
+</div>
+
+<div id="winnerBox" class="panel hidden-section">
+  <h2 id="winnerText"></h2>
+  <button onclick="location.reload()">Neues Spiel</button>
+</div>
+
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script>
+// ==========================================
+// HIER SPÄTER DEINE SPOTIFY CLIENT ID EINTRAGEN
+// ==========================================
+const CLIENT_ID = 'DEINE_CLIENT_ID_HIER'; 
+// ==========================================
+
+let SONGS = []; // Wird nun automatisch durch die Playlist gefüllt
+
+// --- Spotify OAuth Login Logik ---
+let accessToken = null;
+const hash = window.location.hash;
+if (hash) {
+  const params = new URLSearchParams(hash.substring(1));
+  accessToken = params.get('access_token');
+  window.location.hash = ''; // URL aufräumen
+}
+
+if (accessToken) {
+  document.getElementById('loginArea').classList.add('hidden-section');
+  document.getElementById('playlistArea').classList.remove('hidden-section');
+}
+
+function loginSpotify() {
+  if (CLIENT_ID === 'DEINE_CLIENT_ID_HIER') {
+    alert("ACHTUNG: Du musst erst deine eigene Spotify Client-ID im Code hinterlegen (Zeile 108), damit das funktioniert!");
+    return;
+  }
+  // Leitet zur Spotify-Login Seite weiter und danach zurück zu dieser Website
+  const redirectUri = window.location.href.split('#')[0];
+  const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
+  window.location.href = authUrl;
+}
+
+async function loadPlaylist() {
+  const input = document.getElementById('playlistInput').value;
+  const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
+  if (!match) { alert("Das ist kein gültiger Spotify-Playlist-Link!"); return; }
+  const playlistId = match[1];
+
+  const statusEl = document.getElementById('playlistStatus');
+  statusEl.innerText = "Lade Lieder aus Spotify...";
+
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+
+    // Lieder extrahieren und in das richtige Format umwandeln
+    SONGS = data.items.filter(item => item.track && item.track.preview_url !== null || item.track).map(item => {
+      const t = item.track;
+      return {
+        title: t.name,
+        artist: t.artists.map(a => a.name).join(', '),
+        year: parseInt(t.album.release_date.split('-')[0]), // Extrahiert nur das Jahr
+        id: t.id // ID für den Player
+      };
+    });
+
+    statusEl.style.color = "#2ec4b6";
+    statusEl.innerText = `${SONGS.length} Lieder erfolgreich geladen! Weiter geht's.`;
+    
+    setTimeout(() => {
+      document.getElementById('apiSetup').classList.add('hidden-section');
+      document.getElementById('setup').classList.remove('hidden-section');
+    }, 1500);
+
+  } catch(e) {
+    statusEl.style.color = "#ff5757";
+    statusEl.innerText = "Fehler beim Laden der Playlist. Überprüfe den Link.";
+  }
+}
+
+// --- Player & Game Setup ---
+const playerInputs = document.getElementById('playerInputs');
+function addPlayerRow(name) {
+  const row = document.createElement('div');
+  row.className = 'playerRow';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = 'Spielername'; inp.value = name || '';
+  const rm = document.createElement('button'); rm.textContent = 'X'; rm.className = 'danger';
+  rm.onclick = () => row.remove();
+  row.appendChild(inp); row.appendChild(rm);
+  playerInputs.appendChild(row);
+}
+addPlayerRow('Spieler 1'); addPlayerRow('Spieler 2');
+document.getElementById('addPlayerBtn').onclick = () => addPlayerRow('');
+
+let players = [], winTarget = 10, deck = [], currentTurn = 0, placedCards = [], pendingSong = null, pendingIndex = null;
+
+document.getElementById('startBtn').onclick = () => {
+  const names = [...playerInputs.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+  if (names.length < 1) { alert('Bitte mindestens einen Spielernamen eingeben.'); return; }
+  if (SONGS.length < 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
+
+  players = names.map(n => ({name:n, score:0}));
+  winTarget = Math.min(parseInt(document.getElementById('winTarget').value) || 10, SONGS.length);
+  deck = shuffle([...SONGS]);
+  currentTurn = 0;
+  placedCards = [];
+
+  // NEU: Die erste Karte als Startkarte (Referenz) aufdecken!
+  const firstCard = deck.pop();
+  placedCards.push(firstCard);
+
+  document.getElementById('setup').classList.add('hidden-section');
+  document.getElementById('game').classList.remove('hidden-section');
+  renderScoreboard();
+  renderTimeline();
+  updateDeckCount();
+};
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i=a.length-1;i>0;i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+// --- Spotify IFrame Player ---
+let spotifyIFrameAPIReady = null;
+let currentController = null;
+let pendingTrackIdForApi = null;
+
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+  spotifyIFrameAPIReady = IFrameAPI;
+  if (pendingTrackIdForApi) {
+    createSpotifyController(pendingTrackIdForApi);
+    pendingTrackIdForApi = null;
+  }
+};
+
+function createSpotifyController(trackId) {
+  const target = document.getElementById('spotifyEmbedTarget');
+  if (!target) return;
+  if (!spotifyIFrameAPIReady) { pendingTrackIdForApi = trackId; return; }
+  spotifyIFrameAPIReady.createController(target, { uri: 'spotify:track:' + trackId }, (controller) => {
+    currentController = controller;
+    controller.addListener('playback_update', (e) => {
+      const overlay = document.getElementById('overlay');
+      if (overlay) overlay.textContent = e.data.isPaused ? '▶' : '⏸';
+    });
+  });
+}
+
+function destroyCurrentController() {
+  if (currentController) { try { currentController.destroy(); } catch(e) {} currentController = null; }
+}
+
+// --- Game Logic ---
+function updateDeckCount() { document.getElementById('deckCount').textContent = `Noch ${deck.length} Songs im Stapel`; }
+
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = '';
+  players.forEach((p, idx) => {
+    const b = document.createElement('div');
+    b.className = 'playerBadge' + (idx===currentTurn ? ' active' : '');
+    b.innerHTML = `${p.name} <span class="count">${p.score}/${winTarget}</span>`;
+    sb.appendChild(b);
+  });
+}
+
+document.getElementById('drawBtn').onclick = () => {
+  if (deck.length === 0) { alert('Keine Songs mehr im Stapel!'); return; }
+  pendingSong = deck.pop(); pendingIndex = null; updateDeckCount();
+  document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran - Player laden...`;
+  document.getElementById('resultBanner').className = '';
+  document.getElementById('drawBtn').disabled = true;
+  document.getElementById('revealBtn').disabled = false;
+  document.getElementById('nextTurnBtn').disabled = true;
+
+  destroyCurrentController();
+  const embedArea = document.getElementById('embedArea');
+  
+  // Player erstellen (nutzt jetzt direkt die ID aus der API!)
+  embedArea.innerHTML = `
+    <div class="embedWrap">
+      <div class="embedOverlay" id="overlay">▶</div>
+      <div id="spotifyEmbedTarget" style="border-radius:12px; overflow:hidden;"></div>
+    </div>
+  `;
+  createSpotifyController(pendingSong.id);
+  
+  document.getElementById('overlay').onclick = () => {
+    if (currentController) currentController.togglePlay();
+    else document.getElementById('overlay').textContent = '…';
+  };
+
+  addPendingCardToTimeline();
+};
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  const sorted = [...placedCards].sort((a,b) => a.year - b.year);
+  tl.appendChild(makeSlot(0));
+  sorted.forEach((card, i) => {
+    tl.appendChild(makeCardEl(card));
+    tl.appendChild(makeSlot(i+1));
+  });
+}
+
+function makeSlot(index) {
+  const slot = document.createElement('div');
+  slot.className = 'slot'; slot.dataset.index = index;
+  const line = document.createElement('div'); line.className = 'dropline';
+  slot.appendChild(line);
+  slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('dragover'); };
+  slot.ondragleave = () => slot.classList.remove('dragover');
+  slot.ondrop = (e) => {
+    e.preventDefault(); slot.classList.remove('dragover');
+    pendingIndex = parseInt(slot.dataset.index);
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('dragover'));
+    document.getElementById('npLabel').textContent = `Karte platziert. Klicke "Auflösen"!`;
+  };
+  return slot;
+}
+
+function makeCardEl(card) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `<div class="year">${card.year}</div><div class="title">${card.title}</div><div class="artist">${card.artist}</div>`;
+  return el;
+}
+
+function addPendingCardToTimeline() {
+  renderTimeline();
+  const tl = document.getElementById('timeline');
+  const pendingEl = document.createElement('div');
+  pendingEl.className = 'card hidden pending';
+  pendingEl.draggable = true; pendingEl.id = 'pendingCard';
+  pendingEl.ondragstart = (e) => { e.dataTransfer.setData('text/plain','pending'); pendingEl.classList.add('dragging'); };
+  pendingEl.ondragend = () => pendingEl.classList.remove('dragging');
+  tl.insertBefore(pendingEl, tl.firstChild);
+}
+
+document.getElementById('revealBtn').onclick = () => {
+  if (pendingIndex === null) { alert('Zieh die geheime Karte erst an eine Stelle in der Timeline!'); return; }
+  const sortedYears = [...placedCards].sort((a,b) => a.year - b.year).map(c => c.year);
+  const lower = pendingIndex > 0 ? sortedYears[pendingIndex-1] : -Infinity;
+  const upper = pendingIndex < sortedYears.length ? sortedYears[pendingIndex] : Infinity;
+  const correct = pendingSong.year >= lower && pendingSong.year <= upper;
+
+  if (document.getElementById('overlay')) document.getElementById('overlay').style.display = 'none';
+  if (currentController) { try { currentController.pause(); } catch(e) {} }
+
+  const banner = document.getElementById('resultBanner');
+  if (correct) {
+    banner.className = 'show ok';
+    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Punkt für ${players[currentTurn].name}!`;
+    players[currentTurn].score++;
+  } else {
+    banner.className = 'show bad';
+    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}.`;
+  }
+  placedCards.push(pendingSong);
+  renderScoreboard(); renderTimeline();
+  document.getElementById('revealBtn').disabled = true;
+  document.getElementById('nextTurnBtn').disabled = false;
+
+  if (players[currentTurn].score >= winTarget) {
+    document.getElementById('game').classList.add('hidden-section');
+    document.getElementById('winnerBox').classList.remove('hidden-section');
+    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! Prost!`;
+  }
+};
+
+document.getElementById('nextTurnBtn').onclick = () => {
+  currentTurn = (currentTurn + 1) % players.length;
+  pendingSong = null; pendingIndex = null;
+  destroyCurrentController();
+  document.getElementById('embedArea').innerHTML = '';
+  document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran.`;
+  document.getElementById('resultBanner').className = '';
+  document.getElementById('drawBtn').disabled = false;
+  document.getElementById('nextTurnBtn').disabled = true;
+  renderScoreboard();
+};
+</script>
+</body>
+</html>
