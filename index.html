@@ -22,12 +22,14 @@
   button:disabled { opacity: 0.4; cursor:not-allowed; transform:none; }
   
   #scoreboard { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom: 14px; }
-  .playerBadge { padding: 8px 14px; border-radius: 30px; background: rgba(255,255,255,0.08); font-weight:600; border: 2px solid transparent; }
-  .playerBadge.active { border-color:#ffde59; background: rgba(255,222,89,0.18); }
+  .playerBadge { padding: 8px 14px; border-radius: 30px; background: rgba(255,255,255,0.08); font-weight:600; border: 2px solid transparent; transition: all 0.3s ease; }
+  .playerBadge.active { border-color:#ffde59; background: rgba(255,222,89,0.18); transform: scale(1.05); }
   .playerBadge .count { color:#2ec4b6; margin-left:6px; }
   
   #controls { display:flex; justify-content:center; gap:12px; margin-bottom: 18px; flex-wrap:wrap; }
   #deckCount { text-align:center; opacity:0.6; font-size:0.85em; margin-bottom:10px; }
+  
+  #timelineOwner { text-align:center; color:#ffde59; margin-bottom: 10px; font-weight: bold; font-size: 1.2em; }
   #timelineWrap { overflow-x: auto; padding: 20px 10px 30px; background: rgba(0,0,0,0.25); border-radius: 16px; }
   #timeline { display:flex; align-items:center; min-height: 150px; width: max-content; padding: 0 20px; }
   
@@ -111,7 +113,7 @@
   <div id="nowPlaying" class="panel">
     <div id="npLabel">Bereit?</div>
     <div id="embedArea"></div>
-    <div class="hint">Klicke auf das gelbe Feld, um den Song abzuspielen. Ziehe dann die Karte in die Timeline.</div>
+    <div class="hint">Klicke auf das gelbe Feld, um den Song abzuspielen. Ziehe dann die Karte in den Zeitstrahl.</div>
   </div>
   <div id="deckCount"></div>
   <div id="controls">
@@ -119,6 +121,8 @@
     <button id="revealBtn" disabled>Auflösen</button>
     <button id="nextTurnBtn" disabled>Nächster Spieler</button>
   </div>
+  
+  <div id="timelineOwner"></div>
   <div id="timelineWrap">
     <div id="timeline"></div>
   </div>
@@ -141,7 +145,7 @@ let SONGS = [];
 let accessToken = null;
 const redirectUri = window.location.href.split('?')[0].split('#')[0]; 
 
-// --- Spotify OAuth PKCE Login Logik (Neuer Standard) ---
+// --- Spotify OAuth PKCE Login Logik ---
 function generateRandomString(length) {
   let text = '';
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -158,10 +162,6 @@ async function generateCodeChallenge(codeVerifier) {
 }
 
 async function loginSpotify() {
-  if (CLIENT_ID === 'DEINE_CLIENT_ID_HIER') {
-    alert("ACHTUNG: Du musst erst deine eigene Spotify Client-ID im Code hinterlegen (Zeile 108)!");
-    return;
-  }
   const codeVerifier = generateRandomString(64);
   window.localStorage.setItem('code_verifier', codeVerifier);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -220,8 +220,6 @@ async function exchangeToken(code) {
 }
 
 // --- Playlist laden ---
-// Spotify hat im Februar 2026 den Endpoint /playlists/{id}/tracks durch /playlists/{id}/items ersetzt.
-// Die alte Route liefert seither bei allen Development-Mode-Apps 403 Forbidden.
 async function loadPlaylist() {
   const input = document.getElementById('playlistInput').value;
   const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -233,20 +231,18 @@ async function loadPlaylist() {
   statusEl.style.color = "white";
 
   try {
-    const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`, {
+    const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
       headers: { 'Authorization': 'Bearer ' + accessToken }
     });
     const data = await res.json();
     
-    // Wirft jetzt die echte Fehlermeldung von Spotify aus!
     if(data.error) throw new Error(data.error.message);
 
     SONGS = [];
-    data.items.forEach(entry => {
-      // Neues Antwortformat seit Feb 2026: "item" statt "track"
-      const t = entry && entry.item;
-      if (t && t.id) {
-        let songYear = 2024; // Notfall-Jahr, falls Spotify kein Datum hat
+    data.items.forEach(item => {
+      if (item && item.track && item.track.id) {
+        const t = item.track;
+        let songYear = 2024;
         if (t.album && t.album.release_date) {
           songYear = parseInt(t.album.release_date.split('-')[0]);
         }
@@ -260,7 +256,7 @@ async function loadPlaylist() {
     });
 
     if (SONGS.length < 5) {
-      throw new Error("Zu wenige abspielbare Lieder gefunden. Hinweis: Spotify liefert seit Februar 2026 Inhalte nur noch fuer Playlists, die du selbst erstellt hast.");
+      throw new Error("Zu wenige abspielbare Lieder gefunden.");
     }
 
     statusEl.style.color = "#2ec4b6";
@@ -273,7 +269,6 @@ async function loadPlaylist() {
 
   } catch(e) {
     statusEl.style.color = "#ff5757";
-    // Hier ist der Trick: Er schreibt uns jetzt GENAU hin, was das Problem ist!
     statusEl.innerText = "Fehler: " + e.message;
   }
 }
@@ -293,26 +288,32 @@ function addPlayerRow(name) {
 addPlayerRow('Spieler 1'); addPlayerRow('Spieler 2');
 document.getElementById('addPlayerBtn').onclick = () => addPlayerRow('');
 
-let players = [], winTarget = 10, deck = [], currentTurn = 0, placedCards = [], pendingSong = null, pendingIndex = null;
+let players = [], winTarget = 10, deck = [], currentTurn = 0, pendingSong = null, pendingIndex = null;
 
 document.getElementById('startBtn').onclick = () => {
   const names = [...playerInputs.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
   if (names.length < 1) { alert('Bitte mindestens einen Spielernamen eingeben.'); return; }
-  if (SONGS.length < 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
+  
+  // Wir brauchen mindestens 1 Startkarte pro Spieler + ein paar zum Spielen
+  if (SONGS.length < names.length + 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
 
-  players = names.map(n => ({name:n, score:0}));
-  winTarget = Math.min(parseInt(document.getElementById('winTarget').value) || 10, SONGS.length);
   deck = shuffle([...SONGS]);
+  
+  // Jeder Spieler bekommt ein eigenes Array (seinen eigenen Zeitstrahl) mit einer Startkarte
+  players = names.map(n => ({
+    name: n, 
+    score: 1, 
+    timeline: [deck.pop()] 
+  }));
+  
+  winTarget = Math.min(parseInt(document.getElementById('winTarget').value) || 10, SONGS.length);
   currentTurn = 0;
-  placedCards = [];
-
-  const firstCard = deck.pop();
-  placedCards.push(firstCard);
 
   document.getElementById('setup').classList.add('hidden-section');
   document.getElementById('game').classList.remove('hidden-section');
+  
   renderScoreboard();
-  renderTimeline();
+  renderTimeline(); // Zeigt die Timeline von Spieler 1 an
   updateDeckCount();
 };
 
@@ -398,9 +399,14 @@ document.getElementById('drawBtn').onclick = () => {
 };
 
 function renderTimeline() {
+  document.getElementById('timelineOwner').textContent = `Zeitstrahl von ${players[currentTurn].name}`;
   const tl = document.getElementById('timeline');
   tl.innerHTML = '';
-  const sorted = [...placedCards].sort((a,b) => a.year - b.year);
+  
+  // Wir holen uns nur die Karten des Spielers, der gerade dran ist
+  const currentPlayerCards = players[currentTurn].timeline;
+  const sorted = [...currentPlayerCards].sort((a,b) => a.year - b.year);
+  
   tl.appendChild(makeSlot(0));
   sorted.forEach((card, i) => {
     tl.appendChild(makeCardEl(card));
@@ -444,7 +450,10 @@ function addPendingCardToTimeline() {
 
 document.getElementById('revealBtn').onclick = () => {
   if (pendingIndex === null) { alert('Zieh die geheime Karte erst an eine Stelle in der Timeline!'); return; }
-  const sortedYears = [...placedCards].sort((a,b) => a.year - b.year).map(c => c.year);
+  
+  const currentPlayerCards = players[currentTurn].timeline;
+  const sortedYears = [...currentPlayerCards].sort((a,b) => a.year - b.year).map(c => c.year);
+  
   const lower = pendingIndex > 0 ? sortedYears[pendingIndex-1] : -Infinity;
   const upper = pendingIndex < sortedYears.length ? sortedYears[pendingIndex] : Infinity;
   const correct = pendingSong.year >= lower && pendingSong.year <= upper;
@@ -455,34 +464,40 @@ document.getElementById('revealBtn').onclick = () => {
   const banner = document.getElementById('resultBanner');
   if (correct) {
     banner.className = 'show ok';
-    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Punkt für ${players[currentTurn].name}!`;
+    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte gehört dir!`;
     players[currentTurn].score++;
+    players[currentTurn].timeline.push(pendingSong); // Karte wird zur eigenen Timeline hinzugefügt
   } else {
     banner.className = 'show bad';
-    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}.`;
+    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte wird abgeworfen.`;
   }
-  placedCards.push(pendingSong);
-  renderScoreboard(); renderTimeline();
+  
+  renderScoreboard(); 
+  renderTimeline(); // Aktualisiert die Ansicht sofort
+  
   document.getElementById('revealBtn').disabled = true;
   document.getElementById('nextTurnBtn').disabled = false;
 
   if (players[currentTurn].score >= winTarget) {
     document.getElementById('game').classList.add('hidden-section');
     document.getElementById('winnerBox').classList.remove('hidden-section');
-    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! Prost!`;
+    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! Prost! 🍻`;
   }
 };
 
 document.getElementById('nextTurnBtn').onclick = () => {
-  currentTurn = (currentTurn + 1) % players.length;
+  currentTurn = (currentTurn + 1) % players.length; // Nächster Spieler ist dran
   pendingSong = null; pendingIndex = null;
   destroyCurrentController();
+  
   document.getElementById('embedArea').innerHTML = '';
   document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran.`;
   document.getElementById('resultBanner').className = '';
   document.getElementById('drawBtn').disabled = false;
   document.getElementById('nextTurnBtn').disabled = true;
+  
   renderScoreboard();
+  renderTimeline(); // Wechselt sofort die Ansicht auf den Zeitstrahl des neuen Spielers
 };
 </script>
 </body>
