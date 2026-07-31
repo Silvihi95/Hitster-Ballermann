@@ -430,21 +430,19 @@ function renderTimeline() {
 
 function makeSlot(index) {
   const slot = document.createElement('div');
-  slot.className = 'slot'; slot.dataset.index = index;
-  const line = document.createElement('div'); line.className = 'dropline';
+  slot.className = 'slot'; 
+  slot.dataset.index = index;
+  
+  const line = document.createElement('div'); 
+  line.className = 'dropline';
+  line.innerHTML = `<span style="font-size:0.7em; font-weight:bold;">+ Platzieren</span>`;
   slot.appendChild(line);
   
-  slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('dragover'); };
-  slot.ondragleave = () => slot.classList.remove('dragover');
-  
-  slot.ondrop = (e) => {
-    e.preventDefault(); 
-    slot.classList.remove('dragover');
+  // Statt Drag & Drop einfach ein Klick, um die Karte hierhin zu setzen!
+  slot.onclick = () => {
+    if (!pendingSong) return;
     pendingIndex = parseInt(slot.dataset.index);
-    document.querySelectorAll('.slot').forEach(s => s.classList.remove('dragover'));
-    document.getElementById('npLabel').textContent = `Karte platziert. Klicke "Auflösen"!`;
-    
-    // Timeline sofort neu rendern, damit die Karte fest im Slot einrastet
+    document.getElementById('npLabel').textContent = `Karte platziert! Klicke "Auflösen".`;
     renderTimeline();
   };
   
@@ -461,10 +459,7 @@ function makeCardEl(card) {
 function makePendingCardEl() {
   const pendingEl = document.createElement('div');
   pendingEl.className = 'card hidden pending';
-  pendingEl.draggable = true; 
   pendingEl.id = 'pendingCard';
-  pendingEl.ondragstart = (e) => { e.dataTransfer.setData('text/plain','pending'); pendingEl.classList.add('dragging'); };
-  pendingEl.ondragend = () => pendingEl.classList.remove('dragging');
   return pendingEl;
 }
 
