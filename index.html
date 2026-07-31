@@ -219,6 +219,7 @@ async function exchangeToken(code) {
 }
 
 // --- Playlist laden ---
+// --- Playlist laden ---
 async function loadPlaylist() {
   const input = document.getElementById('playlistInput').value;
   const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -234,17 +235,31 @@ async function loadPlaylist() {
       headers: { 'Authorization': 'Bearer ' + accessToken }
     });
     const data = await res.json();
+    
+    // Wirft jetzt die echte Fehlermeldung von Spotify aus!
     if(data.error) throw new Error(data.error.message);
 
-    SONGS = data.items.filter(item => item.track && item.track.preview_url !== null || item.track).map(item => {
-      const t = item.track;
-      return {
-        title: t.name,
-        artist: t.artists.map(a => a.name).join(', '),
-        year: parseInt(t.album.release_date.split('-')[0]),
-        id: t.id
-      };
+    SONGS = [];
+    data.items.forEach(item => {
+      // Prüft ganz streng, ob es wirklich ein abspielbarer Song ist
+      if (item && item.track && item.track.id) {
+        const t = item.track;
+        let songYear = 2024; // Notfall-Jahr, falls Spotify kein Datum hat
+        if (t.album && t.album.release_date) {
+          songYear = parseInt(t.album.release_date.split('-')[0]);
+        }
+        SONGS.push({
+          title: t.name || "Unbekannt",
+          artist: t.artists ? t.artists.map(a => a.name).join(', ') : "Unbekannt",
+          year: songYear,
+          id: t.id
+        });
+      }
     });
+
+    if (SONGS.length < 5) {
+      throw new Error("Zu wenige abspielbare Lieder gefunden.");
+    }
 
     statusEl.style.color = "#2ec4b6";
     statusEl.innerText = `${SONGS.length} Lieder erfolgreich geladen! Weiter geht's.`;
@@ -256,7 +271,8 @@ async function loadPlaylist() {
 
   } catch(e) {
     statusEl.style.color = "#ff5757";
-    statusEl.innerText = "Fehler beim Laden der Playlist. Überprüfe den Link.";
+    // Hier ist der Trick: Er schreibt uns jetzt GENAU hin, was das Problem ist!
+    statusEl.innerText = "Fehler: " + e.message;
   }
 }
 
