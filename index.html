@@ -119,9 +119,11 @@
     <button id="revealBtn" disabled>Auflösen</button>
     <button id="nextTurnBtn" disabled>Nächster Spieler</button>
   </div>
+   <div id="timelineOwner"></div>
   <div id="timelineWrap">
     <div id="timeline"></div>
   </div>
+  
 </div>
 
 <div id="winnerBox" class="panel hidden-section">
@@ -298,22 +300,210 @@ let players = [], winTarget = 10, deck = [], currentTurn = 0, placedCards = [], 
 document.getElementById('startBtn').onclick = () => {
   const names = [...playerInputs.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
   if (names.length < 1) { alert('Bitte mindestens einen Spielernamen eingeben.'); return; }
-  if (SONGS.length < 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
+  
+  if (SONGS.length < names.length + 5) { alert('Es sind zu wenige Lieder in der Playlist!'); return; }
 
-  players = names.map(n => ({name:n, score:0}));
-  winTarget = Math.min(parseInt(document.getElementById('winTarget').value) || 10, SONGS.length);
   deck = shuffle([...SONGS]);
+  
+  // Jeder Spieler bekommt seinen eigenen Zeitstrahl mit einer Startkarte
+  players = names.map(n => ({
+    name: n, 
+    score: 1, 
+    timeline: [deck.pop()] 
+  }));
+  
+  winTarget = Math.min(parseInt(document.getElementById('winTarget').value) || 10, SONGS.length);
   currentTurn = 0;
-  placedCards = [];
-
-  const firstCard = deck.pop();
-  placedCards.push(firstCard);
 
   document.getElementById('setup').classList.add('hidden-section');
   document.getElementById('game').classList.remove('hidden-section');
+  
   renderScoreboard();
-  renderTimeline();
+  renderTimeline(); 
   updateDeckCount();
+};
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i=a.length-1;i>0;i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+// --- Spotify IFrame Player ---
+let spotifyIFrameAPIReady = null;
+let currentController = null;
+let pendingTrackIdForApi = null;
+
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+  spotifyIFrameAPIReady = IFrameAPI;
+  if (pendingTrackIdForApi) {
+    createSpotifyController(pendingTrackIdForApi);
+    pendingTrackIdForApi = null;
+  }
+};
+
+function createSpotifyController(trackId) {
+  const target = document.getElementById('spotifyEmbedTarget');
+  if (!target) return;
+  if (!spotifyIFrameAPIReady) { pendingTrackIdForApi = trackId; return; }
+  spotifyIFrameAPIReady.createController(target, { uri: 'spotify:track:' + trackId }, (controller) => {
+    currentController = controller;
+    controller.addListener('playback_update', (e) => {
+      const overlay = document.getElementById('overlay');
+      if (overlay) overlay.textContent = e.data.isPaused ? '▶' : '⏸';
+    });
+  });
+}
+
+function destroyCurrentController() {
+  if (currentController) { try { currentController.destroy(); } catch(e) {} currentController = null; }
+}
+
+// --- Game Logic ---
+function updateDeckCount() { document.getElementById('deckCount').textContent = `Noch ${deck.length} Songs im Stapel`; }
+
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = '';
+  players.forEach((p, idx) => {
+    const b = document.createElement('div');
+    b.className = 'playerBadge' + (idx===currentTurn ? ' active' : '');
+    b.innerHTML = `${p.name} <span class="count">${p.score}/${winTarget}</span>`;
+    sb.appendChild(b);
+  });
+}
+
+document.getElementById('drawBtn').onclick = () => {
+  if (deck.length === 0) { alert('Keine Songs mehr im Stapel!'); return; }
+  pendingSong = deck.pop(); pendingIndex = null; updateDeckCount();
+  document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran - Player laden...`;
+  document.getElementById('resultBanner').className = '';
+  document.getElementById('drawBtn').disabled = true;
+  document.getElementById('revealBtn').disabled = false;
+  document.getElementById('nextTurnBtn').disabled = true;
+
+  destroyCurrentController();
+  const embedArea = document.getElementById('embedArea');
+  
+  embedArea.innerHTML = `
+    <div class="embedWrap">
+      <div class="embedOverlay" id="overlay">▶</div>
+      <div id="spotifyEmbedTarget" style="border-radius:12px; overflow:hidden;"></div>
+    </div>
+  `;
+  createSpotifyController(pendingSong.id);
+  
+  document.getElementById('overlay').onclick = () => {
+    if (currentController) currentController.togglePlay();
+    else document.getElementById('overlay').textContent = '…';
+  };
+
+  addPendingCardToTimeline();
+};
+
+function renderTimeline() {
+  document.getElementById('timelineOwner').textContent = `Zeitstrahl von ${players[currentTurn].name}`;
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  
+  // Zeigt nur die Karten des aktuell aktiven Spielers
+  const currentPlayerCards = players[currentTurn].timeline;
+  const sorted = [...currentPlayerCards].sort((a,b) => a.year - b.year);
+  
+  tl.appendChild(makeSlot(0));
+  sorted.forEach((card, i) => {
+    tl.appendChild(makeCardEl(card));
+    tl.appendChild(makeSlot(i+1));
+  });
+}
+
+function makeSlot(index) {
+  const slot = document.createElement('div');
+  slot.className = 'slot'; slot.dataset.index = index;
+  const line = document.createElement('div'); line.className = 'dropline';
+  slot.appendChild(line);
+  slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('dragover'); };
+  slot.ondragleave = () => slot.classList.remove('dragover');
+  slot.ondrop = (e) => {
+    e.preventDefault(); slot.classList.remove('dragover');
+    pendingIndex = parseInt(slot.dataset.index);
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('dragover'));
+    document.getElementById('npLabel').textContent = `Karte platziert. Klicke "Auflösen"!`;
+  };
+  return slot;
+}
+
+function makeCardEl(card) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `<div class="year">${card.year}</div><div class="title">${card.title}</div><div class="artist">${card.artist}</div>`;
+  return el;
+}
+
+function addPendingCardToTimeline() {
+  renderTimeline();
+  const tl = document.getElementById('timeline');
+  const pendingEl = document.createElement('div');
+  pendingEl.className = 'card hidden pending';
+  pendingEl.draggable = true; pendingEl.id = 'pendingCard';
+  pendingEl.ondragstart = (e) => { e.dataTransfer.setData('text/plain','pending'); pendingEl.classList.add('dragging'); };
+  pendingEl.ondragend = () => pendingEl.classList.remove('dragging');
+  tl.insertBefore(pendingEl, tl.firstChild);
+}
+
+document.getElementById('revealBtn').onclick = () => {
+  if (pendingIndex === null) { alert('Zieh die geheime Karte erst an eine Stelle in der Timeline!'); return; }
+  
+  const currentPlayerCards = players[currentTurn].timeline;
+  const sortedYears = [...currentPlayerCards].sort((a,b) => a.year - b.year).map(c => c.year);
+  
+  const lower = pendingIndex > 0 ? sortedYears[pendingIndex-1] : -Infinity;
+  const upper = pendingIndex < sortedYears.length ? sortedYears[pendingIndex] : Infinity;
+  const correct = pendingSong.year >= lower && pendingSong.year <= upper;
+
+  if (document.getElementById('overlay')) document.getElementById('overlay').style.display = 'none';
+  if (currentController) { try { currentController.pause(); } catch(e) {} }
+
+  const banner = document.getElementById('resultBanner');
+  if (correct) {
+    banner.className = 'show ok';
+    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte gehört dir!`;
+    players[currentTurn].score++;
+    players[currentTurn].timeline.push(pendingSong); // Karte wandert in den Zeitstrahl dieses Spielers
+  } else {
+    banner.className = 'show bad';
+    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte wird abgeworfen.`;
+  }
+  
+  renderScoreboard(); 
+  renderTimeline(); 
+  
+  document.getElementById('revealBtn').disabled = true;
+  document.getElementById('nextTurnBtn').disabled = false;
+
+  if (players[currentTurn].score >= winTarget) {
+    document.getElementById('game').classList.add('hidden-section');
+    document.getElementById('winnerBox').classList.remove('hidden-section');
+    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! Prost! 🍻`;
+  }
+};
+
+document.getElementById('nextTurnBtn').onclick = () => {
+  currentTurn = (currentTurn + 1) % players.length; 
+  pendingSong = null; pendingIndex = null;
+  destroyCurrentController();
+  
+  document.getElementById('embedArea').innerHTML = '';
+  document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran.`;
+  document.getElementById('resultBanner').className = '';
+  document.getElementById('drawBtn').disabled = false;
+  document.getElementById('nextTurnBtn').disabled = true;
+  
+  renderScoreboard();
+  renderTimeline(); // Wechselt die Ansicht zum Zeitstrahl des nächsten Spielers
 };
 
 function shuffle(arr) {
