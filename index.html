@@ -79,11 +79,10 @@
     </div>
 
     <div id="playlistArea" class="hidden-section">
-      <p style="color: #2ec4b6; font-weight: bold;">✓ Erfolgreich mit Spotify verbunden!</p>
+      <p style="color: #2ec4b6; font-weight: bold;" id="playlistStatus">✓ Erfolgreich mit Spotify verbunden!</p>
       <label>Spotify Playlist Link einfügen:</label>
       <input type="text" id="playlistInput" placeholder="https://open.spotify.com/playlist/37i9dQZF1DXcK1zT7iP663...">
       <button onclick="loadPlaylist()">Lieder importieren</button>
-      <div id="playlistStatus" style="margin-top: 10px; font-weight: bold;"></div>
     </div>
   </div>
 </div>
@@ -133,38 +132,93 @@
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
 // ==========================================
-// HIER SPÄTER DEINE SPOTIFY CLIENT ID EINTRAGEN
+// HIER DEINE SPOTIFY CLIENT ID EINTRAGEN
 // ==========================================
 const CLIENT_ID = '6758375bc1774c9d92bc7f67a78bf011'; 
 // ==========================================
 
-let SONGS = []; // Wird nun automatisch durch die Playlist gefüllt
-
-// --- Spotify OAuth Login Logik ---
+let SONGS = []; 
 let accessToken = null;
-const hash = window.location.hash;
-if (hash) {
-  const params = new URLSearchParams(hash.substring(1));
-  accessToken = params.get('access_token');
-  window.location.hash = ''; // URL aufräumen
+const redirectUri = window.location.href.split('?')[0].split('#')[0]; 
+
+// --- Spotify OAuth PKCE Login Logik (Neuer Standard) ---
+function generateRandomString(length) {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
+  return text;
 }
 
-if (accessToken) {
-  document.getElementById('loginArea').classList.add('hidden-section');
-  document.getElementById('playlistArea').classList.remove('hidden-section');
+async function generateCodeChallenge(codeVerifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function loginSpotify() {
+async function loginSpotify() {
   if (CLIENT_ID === 'DEINE_CLIENT_ID_HIER') {
-    alert("ACHTUNG: Du musst erst deine eigene Spotify Client-ID im Code hinterlegen (Zeile 108), damit das funktioniert!");
+    alert("ACHTUNG: Du musst erst deine eigene Spotify Client-ID im Code hinterlegen (Zeile 108)!");
     return;
   }
-  // Leitet zur Spotify-Login Seite weiter und danach zurück zu dieser Website
-  const redirectUri = window.location.href.split('#')[0];
-  const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user-read-private`;
-  window.location.href = authUrl;
+  const codeVerifier = generateRandomString(64);
+  window.localStorage.setItem('code_verifier', codeVerifier);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    scope: 'user-read-private',
+    code_challenge_method: 'S256',
+    code_challenge: codeChallenge
+  });
+  window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
+const urlParams = new URLSearchParams(window.location.search);
+const code = urlParams.get('code');
+
+if (code) {
+  document.getElementById('loginArea').classList.add('hidden-section');
+  document.getElementById('playlistArea').classList.remove('hidden-section');
+  document.getElementById('playlistStatus').innerText = "Authentifiziere...";
+  exchangeToken(code);
+  window.history.replaceState({}, document.title, redirectUri);
+}
+
+async function exchangeToken(code) {
+  const codeVerifier = window.localStorage.getItem('code_verifier');
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier
+  });
+
+  try {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    });
+    const data = await response.json();
+    if (data.access_token) {
+      accessToken = data.access_token;
+      document.getElementById('playlistStatus').innerText = "✓ Erfolgreich verbunden! Füge nun den Playlist-Link ein.";
+      document.getElementById('playlistStatus').style.color = "#2ec4b6";
+    } else {
+      throw new Error("Token Error");
+    }
+  } catch(e) {
+    document.getElementById('playlistStatus').innerText = "Fehler bei der Verbindung mit Spotify.";
+    document.getElementById('playlistStatus').style.color = "#ff5757";
+  }
+}
+
+// --- Playlist laden ---
 async function loadPlaylist() {
   const input = document.getElementById('playlistInput').value;
   const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -173,6 +227,7 @@ async function loadPlaylist() {
 
   const statusEl = document.getElementById('playlistStatus');
   statusEl.innerText = "Lade Lieder aus Spotify...";
+  statusEl.style.color = "white";
 
   try {
     const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`, {
@@ -181,14 +236,13 @@ async function loadPlaylist() {
     const data = await res.json();
     if(data.error) throw new Error(data.error.message);
 
-    // Lieder extrahieren und in das richtige Format umwandeln
     SONGS = data.items.filter(item => item.track && item.track.preview_url !== null || item.track).map(item => {
       const t = item.track;
       return {
         title: t.name,
         artist: t.artists.map(a => a.name).join(', '),
-        year: parseInt(t.album.release_date.split('-')[0]), // Extrahiert nur das Jahr
-        id: t.id // ID für den Player
+        year: parseInt(t.album.release_date.split('-')[0]),
+        id: t.id
       };
     });
 
@@ -234,7 +288,6 @@ document.getElementById('startBtn').onclick = () => {
   currentTurn = 0;
   placedCards = [];
 
-  // NEU: Die erste Karte als Startkarte (Referenz) aufdecken!
   const firstCard = deck.pop();
   placedCards.push(firstCard);
 
@@ -310,7 +363,6 @@ document.getElementById('drawBtn').onclick = () => {
   destroyCurrentController();
   const embedArea = document.getElementById('embedArea');
   
-  // Player erstellen (nutzt jetzt direkt die ID aus der API!)
   embedArea.innerHTML = `
     <div class="embedWrap">
       <div class="embedOverlay" id="overlay">▶</div>
