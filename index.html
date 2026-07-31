@@ -170,7 +170,7 @@ async function loginSpotify() {
     client_id: CLIENT_ID,
     response_type: 'code',
     redirect_uri: redirectUri,
-    scope: 'user-read-private playlist-read-private',
+    scope: 'user-read-private playlist-read-private playlist-read-collaborative',
     code_challenge_method: 'S256',
     code_challenge: codeChallenge
   });
