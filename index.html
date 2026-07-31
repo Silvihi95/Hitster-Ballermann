@@ -469,7 +469,8 @@ function addPendingCardToTimeline() {
 }
 
 document.getElementById('revealBtn').onclick = () => {
-  if (pendingIndex === null) { alert('Zieh die geheime Karte erst an eine Stelle in der Timeline!'); return; }
+  // Text angepasst, da wir jetzt klicken und nicht mehr ziehen
+  if (pendingIndex === null) { alert('Wähle erst einen Platz in der Timeline aus!'); return; }
   
   const currentPlayerCards = players[currentTurn].timeline;
   const sortedYears = [...currentPlayerCards].sort((a,b) => a.year - b.year).map(c => c.year);
@@ -486,11 +487,16 @@ document.getElementById('revealBtn').onclick = () => {
     banner.className = 'show ok';
     banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte gehört dir!`;
     players[currentTurn].score++;
-    players[currentTurn].timeline.push(pendingSong); // Karte wandert in den Zeitstrahl dieses Spielers
+    players[currentTurn].timeline.push(pendingSong); 
   } else {
     banner.className = 'show bad';
     banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte wird abgeworfen.`;
   }
+  
+  // ---> HIER IST DER WICHTIGE FIX <---
+  // Wir leeren den Zwischenspeicher, BEVOR wir die Timeline neu zeichnen
+  pendingSong = null;
+  pendingIndex = null;
   
   renderScoreboard(); 
   renderTimeline(); 
