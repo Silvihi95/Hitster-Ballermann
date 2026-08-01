@@ -491,8 +491,62 @@ const winnerPhrases = [
   "Diese Person sollte beruflich Playlists kuratieren!",
   "Ein Ohr wie ein Luchs - Respekt!",
   "Musikwissen auf Champions-League-Niveau!",
-  "So klingt ein wahrer Hit-Experte!"
+  "So klingt ein wahrer Hit-Experte!",
+  "Die lebende Jukebox hat zugeschlagen!",
+  "Wir verneigen uns vor der wahren Musik-Gottheit!",
+  "Dieter Bohlen ruft gleich an und will dich als Jury-Mitglied!",
+  "Niemand tippt Jahreszahlen so sexy wie du!",
+  "Spotify sollte eigentlich DICH für dein Wissen bezahlen!",
+  "Ein musikalisches Gedächtnis wie ein Elefant auf Tournee!"
+]; 
+
+const wrongPhrases = [
+  "Knapp daneben ist auch vorbei!",
+  "Das war wohl vor deiner Zeit...",
+  "Autsch, das tat in den Ohren weh!",
+  "Da hat dein innerer DJ wohl einen Aussetzer gehabt!",
+  "Vielleicht beim nächsten Mal weniger raten?",
+  "Das grenzt ja fast an musikalische Blasphemie!",
+  "Nicht ganz... aber schönes Lied!",
+  "Wow... das war nicht mal im selben Jahrzehnt.",
+  "Dein Musikgeschmack in allen Ehren, aber dein Zeitgefühl ist im Urlaub.",
+  "Setzen, Sechs! Das üben wir noch mal.",
+  "Das war ein zielsicherer Griff ins musikalische Klo.",
+  "Hast du da überhaupt schon gelebt?",
+  "Eieiei, das gibt ordentlich Abzug in der B-Note.",
+  "Warst du in dem Jahr eingefroren?",
+  "Da hat dich dein Gehör aber dezent verarscht."
 ];
+
+const correctPhrases = [
+  "Spot on!",
+  "Sauber eingefädelt!",
+  "Da kennt sich jemand aus!",
+  "Perfekt platziert!",
+  "Ein echtes Musik-Genie am Werk!",
+  "Wie aus dem Lehrbuch!",
+  "Besser geht's nicht!",
+  "Ding ding ding! 100 Punkte!",
+  "Zielsicher wie ein Schweizer Uhrwerk!",
+  "Eiskalt versenkt!",
+  "Dein Musikradar funktioniert einwandfrei!",
+  "Auf den Punkt genau! Stark.",
+  "Da hat jemand seine Hausaufgaben gemacht!",
+  "Ab in die Timeline damit!"
+];
+
+const closeToWinPhrases = [
+  "Endspurt! Mach jetzt bloß keinen Fehler!",
+  "Fast am Ziel! Riechst du schon den Sieg?",
+  "Nur noch ein kleines bisschen...",
+  "Die Spannung steigt, der Sieg ist zum Greifen nah!",
+  "Die Konkurrenz schwitzt schon!",
+  "Schon mal den Champagner kaltstellen?",
+  "Der Thron ist schon in Sichtweite!",
+  "Der Matchball liegt auf dem Tisch!",
+  "Spürst du den Atem deiner Gegner im Nacken? Zieh durch!"
+];
+
 function randomWinnerPhrase() {
   return winnerPhrases[Math.floor(Math.random() * winnerPhrases.length)];
 }
@@ -700,18 +754,31 @@ function doReveal() {
   if (currentController) { try { currentController.pause(); } catch(e) {} }
 
   const banner = document.getElementById('resultBanner');
+  
   if (correct) {
-    banner.className = 'show ok';
-    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte gehört dir!`;
     players[currentTurn].score++;
     players[currentTurn].timeline.push(pendingSong); 
+    
+    // Zufälligen Spruch auswählen
+    let extraPhrase = correctPhrases[Math.floor(Math.random() * correctPhrases.length)];
+    
+    // Prüfen, ob der Spieler kurz vorm Sieg steht (z.B. nur noch 1 oder 2 Karten fehlen)
+    const cardsNeeded = winTarget - players[currentTurn].score;
+    if (cardsNeeded === 1 || cardsNeeded === 2) {
+      extraPhrase = closeToWinPhrases[Math.floor(Math.random() * closeToWinPhrases.length)];
+    }
+
+    banner.className = 'show ok';
+    banner.textContent = `Richtig! ${pendingSong.title} ist von ${pendingSong.year}. ${extraPhrase}`;
+    
   } else {
+    // Zufälligen Spruch für falsche Antwort
+    const extraPhrase = wrongPhrases[Math.floor(Math.random() * wrongPhrases.length)];
+    
     banner.className = 'show bad';
-    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. Die Karte wird abgeworfen.`;
+    banner.textContent = `Falsch! ${pendingSong.title} ist von ${pendingSong.year}. ${extraPhrase}`;
   }
   
-  // ---> HIER IST DER WICHTIGE FIX <---
-  // Wir leeren den Zwischenspeicher, BEVOR wir die Timeline neu zeichnen
   pendingSong = null;
   pendingIndex = null;
   pendingCardActive = false;
@@ -728,6 +795,7 @@ function doReveal() {
     document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! ${randomWinnerPhrase()} Prost! 🍻`;
   }
   pushState();
+  
 }
 
 document.getElementById('revealBtn').onclick = () => {
