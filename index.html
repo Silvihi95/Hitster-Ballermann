@@ -166,6 +166,13 @@
     <div id="timeline"></div>
   </div>
   
+  <!-- NEU: Abbruch-Button -->
+  <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+    <button class="danger" style="font-size: 0.85em; padding: 10px 16px; min-height: auto; opacity: 0.8;" onclick="confirmRestart()">✖ Spiel abbrechen</button>
+  </div>
+  
+</div>
+  
 </div>
 
 <div id="winnerBox" class="panel hidden-section">
@@ -839,6 +846,13 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+  // --- Spiel abbrechen ---
+function confirmRestart() {
+  const userConfirmed = confirm("Willst du das aktuelle Spiel wirklich abbrechen und komplett von vorne beginnen?");
+  if (userConfirmed) {
+    window.location.reload();
+  }
 }
 
 // --- PWA: Service Worker registrieren (macht die Seite installierbar) ---
