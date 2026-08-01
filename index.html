@@ -2,23 +2,26 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>My-Hits</title>
 <style>
   :root { --card-bg: #ffde59; --card-text: #1a1a1a; --accent: #ff5757; --accent2: #2ec4b6; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: radial-gradient(circle at top, #14324d, #071019 80%); color: white; min-height: 100vh; padding: 20px; }
-  h1 { text-align: center; font-size: 1.8em; margin-bottom: 4px; color: #ffde59; text-shadow: 0 0 12px rgba(255,222,89,0.5); }
-  .subtitle { text-align:center; opacity:0.75; margin-bottom: 20px; font-size:0.9em;}
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: radial-gradient(circle at top, #14324d, #071019 80%); color: white; min-height: 100vh; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  h1 { text-align: center; font-size: 1.5em; margin-bottom: 4px; color: #ffde59; text-shadow: 0 0 12px rgba(255,222,89,0.5); }
+  .subtitle { text-align:center; opacity:0.75; margin-bottom: 18px; font-size:0.82em;}
   #apiSetup, #setup, #game { max-width: 900px; margin: 0 auto; }
-  .panel { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(4px); }
+  .panel { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; margin-bottom: 14px; backdrop-filter: blur(4px); }
   label { display:block; margin: 10px 0 4px; font-weight:600; }
-  input[type=text], input[type=number] { width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 1em; margin-bottom: 10px;}
+  input[type=text], input[type=number] { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 16px; margin-bottom: 10px;}
   .playerRow { display:flex; gap:8px; margin-bottom:6px; }
   .playerRow input { flex:1; margin-bottom: 0; }
-  button { cursor: pointer; border: none; border-radius: 10px; padding: 10px 18px; font-size: 1em; font-weight: 700; background: var(--accent2); color: #06282a; transition: transform 0.15s ease, filter 0.15s ease; }
+  button { cursor: pointer; border: none; border-radius: 10px; padding: 13px 18px; font-size: 1em; font-weight: 700; background: var(--accent2); color: #06282a; transition: transform 0.15s ease, filter 0.15s ease; min-height: 46px; touch-action: manipulation; }
   button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  button:active { transform: scale(0.97); filter: brightness(1.15); }
   button.secondary { background: #ffde59; color:#3a2b00; }
-  button.danger { background: var(--accent); color:white; }
+  button.danger { background: var(--accent); color:white; min-width: 46px; }
   button:disabled { opacity: 0.4; cursor:not-allowed; transform:none; }
   
   #scoreboard { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom: 14px; }
@@ -26,17 +29,18 @@
   .playerBadge.active { border-color:#ffde59; background: rgba(255,222,89,0.18); }
   .playerBadge .count { color:#2ec4b6; margin-left:6px; }
   
-  #controls { display:flex; justify-content:center; gap:12px; margin-bottom: 18px; flex-wrap:wrap; }
+  #controls { display:flex; justify-content:center; gap:10px; margin-bottom: 16px; flex-wrap:wrap; }
+  #controls button { flex: 1 1 140px; }
   #deckCount { text-align:center; opacity:0.6; font-size:0.85em; margin-bottom:10px; }
-  #timelineWrap { overflow-x: auto; padding: 20px 10px 30px; background: rgba(0,0,0,0.25); border-radius: 16px; }
-  #timeline { display:flex; align-items:center; min-height: 150px; width: max-content; padding: 0 20px; }
+  #timelineWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 18px 8px 26px; background: rgba(0,0,0,0.25); border-radius: 16px; }
+  #timeline { display:flex; align-items:center; min-height: 140px; width: max-content; padding: 0 16px; }
   
-  .slot { width: 80px; min-width: 80px; height: 130px; display:flex; align-items:center; justify-content:center; position: relative; margin: 0 5px; }
+  .slot { width: 70px; min-width: 70px; height: 120px; display:flex; align-items:center; justify-content:center; position: relative; margin: 0 4px; }
   .slot .dropline { width: 100%; height: 100%; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.3); border-radius: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
-  .slot .dropline::after { content: "Hier ablegen"; font-size: 0.7em; color: rgba(255,255,255,0.4); text-align: center; }
+  .slot .dropline::after { content: "Hier ablegen"; font-size: 0.65em; color: rgba(255,255,255,0.4); text-align: center; padding: 0 4px; }
   .slot.dragover .dropline { background: rgba(255,222,89,0.15); border-color: #ffde59; border-width: 3px; box-shadow: 0 0 12px rgba(255,222,89,0.3); }
   
-  .card { width: 110px; height: 130px; background: linear-gradient(160deg, var(--card-bg), #ffb703); color: var(--card-text); border-radius: 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:8px; box-shadow: 0 6px 14px rgba(0,0,0,0.4); cursor: grab; flex-shrink:0; position: relative; user-select:none; }
+  .card { width: 100px; height: 120px; background: linear-gradient(160deg, var(--card-bg), #ffb703); color: var(--card-text); border-radius: 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:8px; box-shadow: 0 6px 14px rgba(0,0,0,0.4); cursor: grab; flex-shrink:0; position: relative; user-select:none; }
   .card .year { font-size: 1.6em; font-weight:800; }
   .card .title { font-size: 0.65em; font-weight:600; margin-top:4px; line-height:1.1; }
   .card .artist { font-size: 0.58em; opacity:0.75; }
@@ -61,12 +65,32 @@
   #winnerBox h2 { color:#ffde59; }
   
   .hidden-section { display:none !important; }
+
+  @media (max-width: 400px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.3em; }
+    .panel { padding: 12px; border-radius: 14px; }
+    #controls button { flex-basis: 100%; }
+    .embedOverlay { font-size: 1.8em; }
+    .playerBadge { padding: 6px 10px; font-size: 0.9em; }
+  }
 </style>
 </head>
 <body>
 
 <h1>My-Hits</h1>
 <div class="subtitle">Automatische Playlist-Anbindung · Timeline-Kartenspiel</div>
+
+<!-- ZWEITES HANDY VERBINDEN -->
+<div id="joinPanel" class="panel" style="max-width:900px;margin:0 auto 16px;">
+  <h3>Schon ein Spiel auf einem anderen Handy gestartet?</h3>
+  <p style="font-size:0.85em;opacity:0.8;">Dann gib hier den 4-stelligen Code ein, um dieses Handy live mitlaufen zu lassen.</p>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="joinCodeInput" placeholder="z.B. 4821" maxlength="4" style="margin-bottom:0;">
+    <button class="secondary" onclick="joinRoom()">Verbinden</button>
+  </div>
+  <p id="joinStatus" style="font-size:0.85em; margin-top:8px;"></p>
+</div>
 
 <!-- SPOTIFY API SETUP -->
 <div id="apiSetup">
@@ -99,6 +123,12 @@
     <label>Karten zum Sieg (Empfehlung: 10)</label>
     <input type="number" id="winTarget" value="10" min="3" max="45">
   </div>
+  <div class="panel">
+    <h3>Mehrspieler</h3>
+    <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin-bottom:0;">
+      <input type="checkbox" id="multiplayerToggle" style="width:auto; margin:0;"> Mit zweitem Handy synchronisieren
+    </label>
+  </div>
   <div style="text-align:center;">
     <button id="startBtn">Spiel starten</button>
   </div>
@@ -106,12 +136,13 @@
 
 <!-- GAME -->
 <div id="game" class="hidden-section">
+  <div id="roleBanner" style="text-align:center;opacity:0.75;font-size:0.9em;margin-bottom:8px;"></div>
   <div id="scoreboard"></div>
   <div id="resultBanner"></div>
   <div id="nowPlaying" class="panel">
     <div id="npLabel">Bereit?</div>
     <div id="embedArea"></div>
-    <div class="hint">Klicke auf das gelbe Feld, um den Song abzuspielen. Ziehe dann die Karte in die Timeline.</div>
+    <div class="hint">Klicke auf das gelbe Feld, um den Song abzuspielen. Klicke dann auf die Stelle in der Timeline.</div>
   </div>
   <div id="deckCount"></div>
   <div id="controls">
@@ -131,8 +162,132 @@
   <button onclick="location.reload()">Neues Spiel</button>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
+// ==========================================
+// FIREBASE CONFIG (Mehrspieler-Sync)
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCFbhWWxdt4l_Wi3nT7zXmcow6hQR-c81U",
+  authDomain: "my-hits-5dd73.firebaseapp.com",
+  databaseURL: "https://my-hits-5dd73-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "my-hits-5dd73",
+  storageBucket: "my-hits-5dd73.firebasestorage.app",
+  messagingSenderId: "657094772055",
+  appId: "1:657094772055:web:2e6aee2fc10b8f50b32a12"
+};
+// ==========================================
+
+let firebaseApp = null;
+function initFirebaseIfNeeded() {
+  if (!firebaseApp) {
+    firebaseApp = firebase.initializeApp(firebaseConfig);
+  }
+  return firebase.database();
+}
+
+let mode = null;         // 'host' oder 'companion'
+let isMultiplayer = false;
+let roomCode = null;
+let db = null;
+let pendingMarker = 0;   // eindeutige Kennung fuer jede gezogene Karte (fuers 2. Handy)
+let pendingCardActive = false; // true solange eine geheime Karte offen ist (ersetzt pendingSong-Check fuers Rendering)
+
+function serializeState() {
+  return {
+    players, winTarget, currentTurn,
+    deckCount: deck.length,
+    hasPendingCard: pendingCardActive,
+    pendingIndex,
+    pendingMarker,
+    npLabel: document.getElementById('npLabel').textContent,
+    resultClass: document.getElementById('resultBanner').className,
+    resultText: document.getElementById('resultBanner').textContent,
+    winner: document.getElementById('winnerBox').classList.contains('hidden-section') ? null : document.getElementById('winnerText').textContent,
+    updatedAt: Date.now()
+  };
+}
+
+function pushState() {
+  if (!isMultiplayer || mode !== 'host' || !db || !roomCode) return;
+  db.ref('rooms/' + roomCode).set(serializeState());
+}
+
+function subscribeHostToPlacement() {
+  db.ref('rooms/' + roomCode + '/placementRequest').on('value', (snap) => {
+    const val = snap.val();
+    if (val !== null && val !== undefined && pendingCardActive) {
+      pendingIndex = parseInt(val);
+      document.getElementById('npLabel').textContent = `Karte platziert (vom 2. Handy). Klicke "Auflösen"!`;
+      renderTimeline();
+      db.ref('rooms/' + roomCode + '/placementRequest').set(null);
+      pushState();
+    }
+  });
+}
+
+async function joinRoom() {
+  const codeInput = document.getElementById('joinCodeInput').value.trim();
+  if (!/^[0-9]{4}$/.test(codeInput)) {
+    document.getElementById('joinStatus').textContent = 'Bitte den 4-stelligen Code vom Haupt-Handy eingeben.';
+    return;
+  }
+  roomCode = codeInput; mode = 'companion'; isMultiplayer = true;
+  document.getElementById('joinStatus').textContent = 'Verbinde...';
+  db = initFirebaseIfNeeded();
+
+  document.getElementById('joinPanel').classList.add('hidden-section');
+  document.getElementById('apiSetup').classList.add('hidden-section');
+  document.getElementById('setup').classList.add('hidden-section');
+  document.getElementById('game').classList.remove('hidden-section');
+  document.getElementById('controls').classList.add('hidden-section');
+  document.getElementById('roleBanner').textContent = `Mitspieler-Handy · Raum ${roomCode}`;
+  document.getElementById('npLabel').textContent = 'Warte auf Haupt-Handy...';
+
+  db.ref('rooms/' + roomCode).on('value', (snap) => {
+    const data = snap.val();
+    if (!data) return;
+    renderFromSnapshot(data);
+  });
+}
+
+function renderFromSnapshot(data) {
+  players = data.players || [];
+  winTarget = data.winTarget || 10;
+  currentTurn = data.currentTurn || 0;
+  deck = new Array(data.deckCount || 0);
+  pendingCardActive = !!data.hasPendingCard;
+  pendingIndex = (data.pendingIndex === undefined || data.pendingIndex === null) ? null : data.pendingIndex;
+
+  renderScoreboard();
+  renderTimeline();
+  updateDeckCount();
+
+  const embedArea = document.getElementById('embedArea');
+  if (pendingCardActive) {
+    if (embedArea.dataset.marker !== String(data.pendingMarker)) {
+      embedArea.dataset.marker = String(data.pendingMarker);
+      embedArea.innerHTML = `<div class="embedWrap"><div class="embedOverlay">🎵</div></div>`;
+    }
+  } else {
+    embedArea.innerHTML = '';
+    embedArea.dataset.marker = '';
+  }
+
+  document.getElementById('npLabel').textContent = data.npLabel || 'Bereit?';
+  const banner = document.getElementById('resultBanner');
+  banner.className = data.resultClass || '';
+  banner.textContent = data.resultText || '';
+
+  if (data.winner) {
+    document.getElementById('game').classList.add('hidden-section');
+    document.getElementById('winnerBox').classList.remove('hidden-section');
+    document.getElementById('winnerText').textContent = data.winner;
+  }
+}
+
 // ==========================================
 // HIER DEINE SPOTIFY CLIENT ID EINTRAGEN
 // ==========================================
@@ -295,7 +450,23 @@ function addPlayerRow(name) {
 addPlayerRow('Spieler 1'); addPlayerRow('Spieler 2');
 document.getElementById('addPlayerBtn').onclick = () => addPlayerRow('');
 
-let players = [], winTarget = 10, deck = [], currentTurn = 0, placedCards = [], pendingSong = null, pendingIndex = null;
+let players = [], winTarget = 10, deck = [], currentTurn = 0, pendingSong = null, pendingIndex = null;
+
+const winnerPhrases = [
+  "Absolute Playlist-Legende!",
+  "Diese Ohren hören Jahreszahlen wie ein Shazam auf zwei Beinen!",
+  "Da hat wohl jemand ein musikalisches Näschen!",
+  "Der Ballermann-Sommelier des Abends!",
+  "Mehr Gefühl für Musik geht nicht!",
+  "Zeit für die Krone der Musik-Königin bzw. des Musik-Königs!",
+  "Diese Person sollte beruflich Playlists kuratieren!",
+  "Ein Ohr wie ein Luchs - Respekt!",
+  "Musikwissen auf Champions-League-Niveau!",
+  "So klingt ein wahrer Hit-Experte!"
+];
+function randomWinnerPhrase() {
+  return winnerPhrases[Math.floor(Math.random() * winnerPhrases.length)];
+}
 
 document.getElementById('startBtn').onclick = () => {
   const names = [...playerInputs.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
@@ -317,10 +488,19 @@ document.getElementById('startBtn').onclick = () => {
 
   document.getElementById('setup').classList.add('hidden-section');
   document.getElementById('game').classList.remove('hidden-section');
+
+  if (document.getElementById('multiplayerToggle').checked) {
+    mode = 'host'; isMultiplayer = true;
+    roomCode = String(Math.floor(1000 + Math.random() * 9000));
+    db = initFirebaseIfNeeded();
+    subscribeHostToPlacement();
+    document.getElementById('roleBanner').textContent = `Haupt-Handy · Code für das 2. Handy: ${roomCode}`;
+  }
   
   renderScoreboard();
   renderTimeline(); 
   updateDeckCount();
+  pushState();
 };
 
 
@@ -371,7 +551,7 @@ function renderScoreboard() {
 
 document.getElementById('drawBtn').onclick = () => {
   if (deck.length === 0) { alert('Keine Songs mehr im Stapel!'); return; }
-  pendingSong = deck.pop(); pendingIndex = null; updateDeckCount();
+  pendingSong = deck.pop(); pendingIndex = null; pendingCardActive = true; pendingMarker++; updateDeckCount();
   document.getElementById('npLabel').textContent = `${players[currentTurn].name} ist dran - Player laden...`;
   document.getElementById('resultBanner').className = '';
   document.getElementById('drawBtn').disabled = true;
@@ -395,6 +575,7 @@ document.getElementById('drawBtn').onclick = () => {
   };
 
   addPendingCardToTimeline();
+  pushState();
 };
 
 function renderTimeline() {
@@ -406,12 +587,12 @@ function renderTimeline() {
   const sorted = [...currentPlayerCards].sort((a,b) => a.year - b.year);
   
   // 1. Wenn noch kein Slot gewählt wurde, liegt die gezogene Karte ganz links
-  if (pendingSong && pendingIndex === null) {
+  if (pendingCardActive && pendingIndex === null) {
     tl.appendChild(makePendingCardEl());
   }
 
   // 2. Erster Slot (Index 0)
-  if (pendingSong && pendingIndex === 0) {
+  if (pendingCardActive && pendingIndex === 0) {
     tl.appendChild(makePendingCardEl());
   }
   tl.appendChild(makeSlot(0));
@@ -421,7 +602,7 @@ function renderTimeline() {
     tl.appendChild(makeCardEl(card));
     
     let slotIdx = i + 1;
-    if (pendingSong && pendingIndex === slotIdx) {
+    if (pendingCardActive && pendingIndex === slotIdx) {
       tl.appendChild(makePendingCardEl());
     }
     tl.appendChild(makeSlot(slotIdx));
@@ -440,10 +621,17 @@ function makeSlot(index) {
   
   // Statt Drag & Drop einfach ein Klick, um die Karte hierhin zu setzen!
   slot.onclick = () => {
-    if (!pendingSong) return;
-    pendingIndex = parseInt(slot.dataset.index);
-    document.getElementById('npLabel').textContent = `Karte platziert! Klicke "Auflösen".`;
-    renderTimeline();
+    if (!pendingCardActive) return;
+    const idx = parseInt(slot.dataset.index);
+    if (isMultiplayer && mode === 'companion') {
+      db.ref('rooms/' + roomCode + '/placementRequest').set(idx);
+      document.getElementById('npLabel').textContent = `Karte ausgewählt - sende an Haupt-Handy...`;
+    } else {
+      pendingIndex = idx;
+      document.getElementById('npLabel').textContent = `Karte platziert! Klicke "Auflösen".`;
+      renderTimeline();
+      if (isMultiplayer && mode === 'host') pushState();
+    }
   };
   
   return slot;
@@ -497,6 +685,7 @@ document.getElementById('revealBtn').onclick = () => {
   // Wir leeren den Zwischenspeicher, BEVOR wir die Timeline neu zeichnen
   pendingSong = null;
   pendingIndex = null;
+  pendingCardActive = false;
   
   renderScoreboard(); 
   renderTimeline(); 
@@ -507,13 +696,14 @@ document.getElementById('revealBtn').onclick = () => {
   if (players[currentTurn].score >= winTarget) {
     document.getElementById('game').classList.add('hidden-section');
     document.getElementById('winnerBox').classList.remove('hidden-section');
-    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! Prost! 🍻`;
+    document.getElementById('winnerText').textContent = `${players[currentTurn].name} gewinnt mit ${players[currentTurn].score} Karten! ${randomWinnerPhrase()} Prost! 🍻`;
   }
+  pushState();
 };
 
 document.getElementById('nextTurnBtn').onclick = () => {
   currentTurn = (currentTurn + 1) % players.length; 
-  pendingSong = null; pendingIndex = null;
+  pendingSong = null; pendingIndex = null; pendingCardActive = false;
   destroyCurrentController();
   
   document.getElementById('embedArea').innerHTML = '';
@@ -524,6 +714,7 @@ document.getElementById('nextTurnBtn').onclick = () => {
   
   renderScoreboard();
   renderTimeline(); // Wechselt die Ansicht zum Zeitstrahl des nächsten Spielers
+  pushState();
 };
 function shuffle(arr) {
   const a = [...arr];
