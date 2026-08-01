@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>My-Hits</title>
+
+<!-- PWA: Installierbar auf Handy-Homescreen -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14324d">
+<link rel="icon" href="icon-192.png">
+
+<!-- iOS-spezifisch: "Zum Home-Bildschirm" -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My-Hits">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root { --card-bg: #ffde59; --card-text: #1a1a1a; --accent: #ff5757; --accent2: #2ec4b6; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -760,6 +771,15 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// --- PWA: Service Worker registrieren (macht die Seite installierbar) ---
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // Falls sw.js fehlt (z.B. lokal ohne Upload), einfach ignorieren - Spiel funktioniert trotzdem
+    });
+  });
 }
 
 
