@@ -848,10 +848,54 @@ function shuffle(arr) {
   return a;
 }
   // --- Spiel abbrechen ---
+// --- Spiel abbrechen (Soft Reset) ---
 function confirmRestart() {
-  const userConfirmed = confirm("Willst du das aktuelle Spiel wirklich abbrechen und komplett von vorne beginnen?");
+  const userConfirmed = confirm("Willst du das aktuelle Spiel wirklich abbrechen und ein neues starten?");
+  
   if (userConfirmed) {
-    window.location.reload();
+    // 1. Musik stoppen, falls sie gerade läuft
+    destroyCurrentController();
+
+    // 2. Spiel-Variablen auf null setzen
+    players = [];
+    deck = [];
+    currentTurn = 0;
+    pendingSong = null;
+    pendingIndex = null;
+    pendingCardActive = false;
+    
+    // Falls Firebase (Mehrspieler) aktiv war, Verbindung trennen
+    if (isMultiplayer && roomCode && db) {
+      db.ref('rooms/' + roomCode + '/placementRequest').off();
+      db.ref('rooms/' + roomCode + '/actionRequest').off();
+    }
+    isMultiplayer = false;
+    mode = null;
+    roomCode = null;
+
+    // 3. Spielfeld aufräumen
+    document.getElementById('timeline').innerHTML = '';
+    document.getElementById('scoreboard').innerHTML = '';
+    document.getElementById('embedArea').innerHTML = '';
+    document.getElementById('resultBanner').className = '';
+    document.getElementById('npLabel').textContent = 'Bereit?';
+    document.getElementById('multiplayerToggle').checked = false;
+    document.getElementById('playlistInput').value = ''; // Playlist-Feld leeren
+
+    // 4. Ansichten umschalten (Spielfeld weg, Setup wieder her!)
+    document.getElementById('game').classList.add('hidden-section');
+    document.getElementById('winnerBox').classList.add('hidden-section');
+    document.getElementById('setup').classList.add('hidden-section');
+    
+    // Zurück zu Schritt 1 (aber Login überspringen!)
+    document.getElementById('apiSetup').classList.remove('hidden-section');
+    document.getElementById('loginArea').classList.add('hidden-section');
+    document.getElementById('playlistArea').classList.remove('hidden-section');
+    
+    // Info-Text aktualisieren
+    const statusEl = document.getElementById('playlistStatus');
+    statusEl.style.color = "#2ec4b6";
+    statusEl.innerText = "✓ Spiel abgebrochen. Du bist weiterhin verbunden. Füge eine neue Playlist ein!";
   }
 }
 
